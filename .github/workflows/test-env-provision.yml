@@ -1,0 +1,81 @@
+name: Test Environment Creation or Deletion
+
+on:
+  workflow_dispatch:
+    inputs:
+      aks_cluster_name:
+        description: 'Name of the AKS Cluster to deploy to'
+        required: true
+        default: '224917579'
+      aks_resource_group:
+        description: 'Resource Group of the AKS Cluster'
+        required: true
+        default: 'deakinuni'
+      aks_acr_name:
+        description: 'Name of ACR'
+        required: true
+        default: '224917579'
+      env_name:
+        description: 'Namespace (environment name)'
+        required: true
+        default: 'testing'
+      action:
+        description: 'Action to perform: create or delete'
+        required: true
+        default: 'create'
+        type: choice
+        options:
+          - create
+          - delete
+
+jobs:
+  manage_environment:
+    runs-on: ubuntu-latest
+    environment: Production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
+
+      - name: Set Kubernetes context
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ inputs.aks_resource_group }} \
+            --name ${{ inputs.aks_cluster_name }} \
+            --overwrite-existing
+
+      - name: Create or Delete Environment
+        env:
+          ENV_NAME: ${{ inputs.env_name }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          cd k8s/
+
+          if [ "$ACTION" = "create" ]; then
+            echo "Creating namespace and deploying resources to '$ENV_NAME'..."
+            kubectl get ns "$ENV_NAME" || kubectl create ns "$ENV_NAME"
+            kubectl apply -f configmaps.yaml -n "$ENV_NAME"
+            kubectl apply -f secrets.yaml -n "$ENV_NAME"
+            kubectl apply -f product-db.yaml -n "$ENV_NAME"
+            kubectl apply -f order-db.yaml -n "$ENV_NAME"
+            kubectl apply -f product-service.yaml -n "$ENV_NAME"
+            kubectl apply -f order-service.yaml -n "$ENV_NAME"
+            kubectl apply -f frontend.yaml -n "$ENV_NAME"
+
+          elif [ "$ACTION" = "delete" ]; then
+            echo "Deleting namespace '$ENV_NAME' and all its resources..."
+            kubectl delete ns "$ENV_NAME" --wait=true
+
+          else
+            echo "Invalid action: $ACTION. Must be 'create' or 'delete'."
+            exit 1
+          fi
+
+      - name: Logout from Azure
+        run: az logout

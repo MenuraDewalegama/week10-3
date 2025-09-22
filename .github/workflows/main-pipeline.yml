@@ -1,0 +1,24 @@
+# .github/workflows/main_pipeline.yml
+# 
+name: Main CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'k8s/**'
+      - '.github/workflows/**'
+
+jobs:
+  run_backend_ci:
+    name: Run Backend CI
+    uses: ./.github/workflows/ci-pipeline.yml
+    secrets: inherit
+
+  run_frontend_ci:
+    name: Run Frontend CI
+    uses: ./.github/workflows/cd-pipeline.yml
+    secrets: inherit

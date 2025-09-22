@@ -1,6 +1,6 @@
 # week08/.github/workflows/backend_ci.yml
 
-name: Backend CI - Test, Build and Push Images to ACR
+name: CI - Test, Build and Push Images to ACR
 
 # Trigger the workflow on pushes to the 'main' branch
 # You can also add 'pull_request:' to run on PRs
@@ -147,6 +147,12 @@ jobs:
       run: |
         docker build -t ${{ env.ACR_LOGIN_SERVER }}/order_service:latest ./backend/order_service/
         docker push ${{ env.ACR_LOGIN_SERVER }}/order_service:latest
+
+    # Build and Push Docker image for Frontend        
+    - name: Build and Push Frontend Image
+      run: |
+        docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:latest ./frontend/
+        docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
 
     # Logout from Azure for security (runs even if image push fails)
     - name: Logout from Azure

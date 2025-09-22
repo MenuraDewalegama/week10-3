@@ -15,7 +15,11 @@ on:
         description: 'Name of ACR'
         required: true
         default: '224917579'
-  
+      env_name:
+        description: 'Name of environment'
+        required: true
+        default: 'staging'  
+
   workflow_call:
     inputs:
       aks_cluster_name:
@@ -30,6 +34,10 @@ on:
         required: true
         type: string
         default: '224917579'
+      env_name:
+        required: true
+        type: string
+        default: 'staging'        
     outputs:
       product_api_ip:
         description: "External IP of Product Service"
@@ -61,25 +69,45 @@ jobs:
         run: |
           az aks get-credentials --resource-group ${{ inputs.aks_resource_group }} --name ${{ inputs.aks_cluster_name }} --overwrite-existing
 
-      # - name: Attach ACR
-      #   run: |
-      #     az aks update --name ${{ github.event.inputs.aks_cluster_name }} --resource-group ${{ github.event.inputs.aks_resource_group }} --attach-acr ${{ github.event.inputs.aks_acr_name }}
-
-      - name: Deploy Backend Infrastructure (Namespace, ConfigMaps, Secrets, Databases)
+      - name: Deploy Backend Infrastructure (ConfigMaps)
+        env:
+          ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
-          kubectl apply -f configmaps.yaml
-          kubectl apply -f secrets.yaml
-          kubectl apply -f product-db.yaml
-          kubectl apply -f order-db.yaml
+          kubectl apply -f configmaps.yaml -n "$ENV_NAME"
+
+      - name: Create Kubernetes Secret (Azure + Postgres)
+        env:
+          ENV_NAME: ${{ inputs.env_name }}
+          STORAGE_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+          STORAGE_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
+        run: |
+          echo "Creating Kubernetes secret for Storage and DB"
+          kubectl create secret generic ecomm-secrets-w08e1 \
+            --from-literal=POSTGRES_USER=postgres \
+            --from-literal=POSTGRES_PASSWORD=postgres \
+            --from-literal=AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_NAME \
+            --from-literal=AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_KEY \
+            -n "$ENV_NAME"
+
+      - name: Deploy Backend Infrastructure (Databases)
+        env:
+          ENV_NAME: ${{ inputs.env_name }}
+        run: |
+          echo "Deploying backend infrastructure..."
+          cd k8s/
+          kubectl apply -f product-db.yaml -n "$ENV_NAME"
+          kubectl apply -f order-db.yaml -n "$ENV_NAME"
 
       - name: Deploy Backend Microservices (Product, Order)
+        env:
+          ENV_NAME: ${{ inputs.env_name }}      
         run: |
           echo "Deploying backend microservices..."
           cd k8s/
-          kubectl apply -f product-service.yaml
-          kubectl apply -f order-service.yaml
+          kubectl apply -f product-service.yaml -n "$ENV_NAME"
+          kubectl apply -f order-service.yaml -n "$ENV_NAME"
       
       - name: Wait for Backend LoadBalancer IPs
         run: |
@@ -111,13 +139,32 @@ jobs:
           echo "PRODUCT_IP=$PRODUCT_IP" >> $GITHUB_ENV
           echo "ORDER_IP=$ORDER_IP" >> $GITHUB_ENV
 
-      - name: Capture Product Service IP for Workflow Output
-        id: get_product_ip
-        run: echo "external_ip=${{ env.PRODUCT_IP }}" >> $GITHUB_OUTPUT
-      
-      - name: Capture Order Service IP for Workflow Output
-        id: get_order_ip
-        run: echo "external_ip=${{ env.ORDER_IP }}" >> $GITHUB_OUTPUT
+
+      - name: Inject Backend IPs into Frontend main.js
+        run: |
+          echo "Injecting IPs into frontend/static/js/main.js"
+          # Ensure frontend/main.js is directly in the path for sed
+          sed -i "s|_PRODUCT_API_URL_|http://${{ env.PRODUCT_IP }}|g" frontend/main.js
+          sed -i "s|_ORDER_API_URL_|http://${{ env.ORDER_IP }}|g" frontend/main.js
+
+          # Display the modified file content for debugging
+          echo "--- Modified main.js content ---"
+          cat frontend/main.js
+          echo "---------------------------------"
+
+      - name: Build and Push Frontend Image
+        run: |
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend/
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
+
+      - name: Deploy Frontend to AKS
+        env:
+          ENV_NAME: ${{ inputs.env_name }}      
+        run: |
+          echo "Deploying frontend with latest tag to AKS cluster: ${{ inputs.aks_cluster_name }}"
+          cd k8s/
+          # Ensure frontend-service.yaml is configured with your ACR
+          kubectl apply -f frontend.yaml -n "$ENV_NAME"
 
       - name: Logout from Azure
         run: az logout

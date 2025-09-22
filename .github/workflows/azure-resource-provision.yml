@@ -72,20 +72,25 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
-      - name: Upload Terraform State
+      - name: Commit and Push State File
         if: github.event.inputs.action == 'apply'
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform/terraform.tfstate
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git fetch origin tfstate || git checkout --orphan tfstate
+          git checkout tfstate
+          cp terraform/terraform.tfstate terraform.tfstate
+          git add terraform.tfstate
+          git commit -m "Update tfstate"
+          git push origin tfstate --force
 
-      - name: Download Terraform State
+      - name: Fetch Terraform State
         if: github.event.inputs.action == 'destroy'
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-state
-          path: terraform
-
+        run: |
+          git fetch origin tfstate
+          git checkout tfstate -- terraform.tfstate
+          mv terraform.tfstate terraform/terraform.tfstate
+      
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
         if: github.event.inputs.action == 'apply'

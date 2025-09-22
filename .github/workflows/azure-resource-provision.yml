@@ -36,13 +36,12 @@ jobs:
       - name: Check for existing Azure resources
         id: check_resources
         run: |
-          echo "Checking for Azure resources starting with prefix: ${{ steps.prefix.outputs.prefix }}"
+          echo "Checking for Azure resources..."
           count=$(az resource list --query "[?starts_with(name, '${{ steps.prefix.outputs.prefix }}')]" -o tsv | wc -l)
-
           if [[ "$count" -gt 0 ]]; then
-            echo "found=true" >> $GITHUB_OUTPUT
+            echo "found=true" >> "$GITHUB_OUTPUT"
           else
-            echo "found=false" >> $GITHUB_OUTPUT
+            echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Display Existing Resources

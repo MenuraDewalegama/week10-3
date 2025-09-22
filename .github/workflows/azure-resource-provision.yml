@@ -31,7 +31,7 @@ jobs:
 
       - name: Set Prefix Variable
         id: prefix
-        run: echo "prefix=224917579" >> $GITHUB_OUTPUT
+        run: echo "prefix=s224917579" >> $GITHUB_OUTPUT
 
       - name: Check for existing Azure resources
         id: check_resources

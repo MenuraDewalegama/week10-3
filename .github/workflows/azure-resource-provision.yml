@@ -80,7 +80,7 @@ jobs:
           echo "STORAGE_KEY=$(terraform output -raw storage_account_key)" >> $GITHUB_ENV
 
       - name: Terraform Destroy
-        if: steps.check_resources.outputs.found == 'true' && github.event.inputs.action == 'destroy'
+        # if: steps.check_resources.outputs.found == 'true' && github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve -input=false
 
       - name: Skip Destroy — No Resources Found

@@ -74,18 +74,18 @@ jobs:
 
       - name: Upload Terraform State
         if: github.event.inputs.action == 'apply'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-state
           path: terraform/terraform.tfstate
 
       - name: Download Terraform State
         if: github.event.inputs.action == 'destroy'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: terraform-state
           path: terraform
-          
+
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
         if: github.event.inputs.action == 'apply'

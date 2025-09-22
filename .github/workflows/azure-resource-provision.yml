@@ -29,26 +29,26 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set Prefix Variable
-        id: prefix
-        run: echo "prefix=s224917579" >> $GITHUB_OUTPUT
+      # - name: Set Prefix Variable
+      #   id: prefix
+      #   run: echo "prefix=s224917579" >> $GITHUB_OUTPUT
 
-      - name: Check for existing Azure resources
-        id: check_resources
-        run: |
-          echo "Checking for Azure resources..."
-          count=$(az resource list --query "[?starts_with(name, '${{ steps.prefix.outputs.prefix }}')]" -o tsv | wc -l)
-          if [[ "$count" -gt 0 ]]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          fi
+      # - name: Check for existing Azure resources
+      #   id: check_resources
+      #   run: |
+      #     echo "Checking for Azure resources..."
+      #     count=$(az resource list --query "[?starts_with(name, '${{ steps.prefix.outputs.prefix }}')]" -o tsv | wc -l)
+      #     if [[ "$count" -gt 0 ]]; then
+      #       echo "found=true" >> "$GITHUB_OUTPUT"
+      #     else
+      #       echo "found=false" >> "$GITHUB_OUTPUT"
+      #     fi
 
-      - name: Display Existing Resources
-        if: steps.check_resources.outputs.found == 'true'
-        run: |
-          echo "Existing resources found:"
-          az resource list --query "[?starts_with(name, '${{ steps.prefix.outputs.prefix }}')].{name:name, type:type, group:resourceGroup}" -o table
+      # - name: Display Existing Resources
+      #   if: steps.check_resources.outputs.found == 'true'
+      #   run: |
+      #     echo "Existing resources found:"
+      #     az resource list --query "[?starts_with(name, '${{ steps.prefix.outputs.prefix }}')].{name:name, type:type, group:resourceGroup}" -o table
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -64,26 +64,26 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -input=false
 
-      - name: Skip Apply — Resources Already Exist
-        if: steps.check_resources.outputs.found == 'true' && github.event.inputs.action == 'apply'
-        run: echo "Skipping 'terraform apply' because matching resources already exist."
+      # - name: Skip Apply — Resources Already Exist
+      #   if: steps.check_resources.outputs.found == 'true' && github.event.inputs.action == 'apply'
+      #   run: echo "Skipping 'terraform apply' because matching resources already exist."
 
       - name: Terraform Apply
-        if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
-        if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply'
         run: |
           echo "STORAGE_NAME=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
           echo "STORAGE_KEY=$(terraform output -raw storage_account_key)" >> $GITHUB_ENV
 
       - name: Terraform Destroy
-        # if: steps.check_resources.outputs.found == 'true' && github.event.inputs.action == 'destroy'
+        if: github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve -input=false
 
-      - name: Skip Destroy — No Resources Found
-        if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'destroy'
-        run: echo "No matching resources found — skipping 'terraform destroy'."
+      # - name: Skip Destroy — No Resources Found
+      #   if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'destroy'
+      #   run: echo "No matching resources found — skipping 'terraform destroy'."
 

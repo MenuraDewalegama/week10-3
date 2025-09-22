@@ -72,34 +72,6 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
-      - name: Commit and Push State File to tfstate Branch
-        if: github.event.inputs.action == 'apply'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          # Create tfstate branch if it doesn't exist
-          git fetch origin tfstate || true
-          git checkout tfstate 2>/dev/null || git checkout --orphan tfstate
-
-          # Make sure there's a README to prevent empty branch
-          echo "# Terraform State Branch" > README.md
-          git add README.md
-
-          # Copy state file into repo root
-          cp terraform/terraform.tfstate terraform.tfstate
-          git add terraform.tfstate
-
-          git commit -m "Update tfstate" || echo "Nothing to commit"
-          git push origin tfstate --force
-                  
-      - name: Fetch Terraform State
-        if: github.event.inputs.action == 'destroy'
-        run: |
-          git fetch origin tfstate
-          git checkout tfstate -- terraform.tfstate
-          mv terraform.tfstate terraform/terraform.tfstate
-      
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
         if: github.event.inputs.action == 'apply'

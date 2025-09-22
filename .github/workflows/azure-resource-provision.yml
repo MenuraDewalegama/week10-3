@@ -73,6 +73,10 @@ jobs:
         if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
+      - name: Registr ACR with AKS
+        if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'apply'
+        run: az aks update --name s224917579 --resource-group deakinuni --attach-acr s224917579
+
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
         if: steps.check_resources.outputs.found == 'false' && github.event.inputs.action == 'apply'

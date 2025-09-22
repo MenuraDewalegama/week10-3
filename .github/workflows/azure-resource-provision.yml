@@ -72,12 +72,20 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -input=false
 
+      - name: Upload tfstate
+        if: github.event.inputs.action == 'apply'
+        run: az storage blob upload --account-name week10tfstate --container-name tfstate --name terraform.tfstate --file terraform.tfstate --auth-mode login
+
       - name: Retrieve Resource Secrets 
         id: get_storage_creds
         if: github.event.inputs.action == 'apply'
         run: |
           echo "STORAGE_NAME=$(terraform output -raw storage_account_name)" >> $GITHUB_ENV
           echo "STORAGE_KEY=$(terraform output -raw storage_account_key)" >> $GITHUB_ENV
+
+      - name: Upload tfstate
+        if: github.event.inputs.action == 'destroy'
+        run: az storage blob download --account-name week10tfstate --container-name tfstate --name terraform.tfstate --file terraform.tfstate --auth-mode login
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'

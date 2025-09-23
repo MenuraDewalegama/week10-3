@@ -55,14 +55,10 @@ jobs:
           az aks get-credentials --name ${{ env.AKS_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }} --overwrite-existing
 
       - name: Create staging namespace
-        env:
-          ENV_NAME: ${{ inputs.env_name }}
         run: |
-          kubectl create namespace "$ENV_NAME" || echo "Namespace already exists"
+          kubectl create namespace "-n staging || echo "Namespace already exists"
 
       - name: Deploy Backend Infrastructure (ConfigMaps)
-        env:
-          ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
@@ -70,7 +66,6 @@ jobs:
 
       - name: Create Kubernetes Secret (Azure + Postgres)
         env:
-          ENV_NAME: ${{ inputs.env_name }}
           STORAGE_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
           STORAGE_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
@@ -83,17 +78,13 @@ jobs:
             -n staging --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Backend Infrastructure (Databases)
-        env:
-          ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
           kubectl apply -f product-db.yaml -n staging
           kubectl apply -f order-db.yaml -n staging
 
-      - name: Deploy Backend Microservices (Product, Order)
-        env:
-          ENV_NAME: ${{ inputs.env_name }}      
+      - name: Deploy Backend Microservices (Product, Order)   
         run: |
           echo "Deploying backend microservices..."
           cd k8s/

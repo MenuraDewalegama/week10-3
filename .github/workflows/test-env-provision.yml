@@ -88,10 +88,11 @@ jobs:
           kubectl apply -f frontend.yaml -n $NAMESPACE 
 
       - name: Deployment status
+        if: github.event.inputs.action == 'apply'
         run: |
           echo "Production deployment is done"
       
       - name: Delete test namespace
         if: github.event.inputs.action == 'destroy'
         run: |
-          kubectl delete namespace -n $NAMESPACE 
+          kubectl delete namespace $NAMESPACE 

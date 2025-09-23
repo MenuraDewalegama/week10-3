@@ -14,12 +14,12 @@ on:
 
 jobs:
   run_ci_pipeline:
-    name: Run Backend CI
+    name: Run CI Pipeline
     uses: ./.github/workflows/ci-pipeline.yml
     secrets: inherit
 
   run_cd_pipeline:
-    name: Run Frontend CI
+    name: Run CD Pipeline
     needs: [run_ci_pipeline]
     uses: ./.github/workflows/cd-pipeline.yml
     secrets: inherit

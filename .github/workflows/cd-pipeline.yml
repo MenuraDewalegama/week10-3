@@ -32,7 +32,7 @@ env:
 
 
 jobs:
-  deploy_backend:
+  deploy_to_staging:
     runs-on: ubuntu-latest
     environment: Production
     

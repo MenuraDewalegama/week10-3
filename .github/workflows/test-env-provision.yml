@@ -1,15 +1,6 @@
 name: Production Deployment
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'k8s/**'
-      - '.github/workflows/**'
-      - 'backend/**'
-      - 'frontend/**'
-
   workflow_dispatch:
     inputs:
       namespace:

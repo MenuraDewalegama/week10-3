@@ -80,7 +80,7 @@ jobs:
             --from-literal=POSTGRES_PASSWORD=postgres \
             --from-literal=AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_NAME \
             --from-literal=AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_KEY \
-            -n "$ENV_NAME" --dry-run=client -o yaml | kubectl apply -f
+            -n "$ENV_NAME" --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Backend Infrastructure (Databases)
         env:

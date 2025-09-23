@@ -56,7 +56,7 @@ jobs:
 
       - name: Create staging namespace
         run: |
-          kubectl create namespace "-n staging || echo "Namespace already exists"
+          kubectl create namespace -n staging || echo "Namespace already exists"
 
       - name: Deploy Backend Infrastructure (ConfigMaps)
         run: |

@@ -145,7 +145,7 @@ jobs:
 
       # Login to Azure Container Registry (ACR)
       - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
+        run: az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
 
       - name: Build and Push Frontend Image
         run: |

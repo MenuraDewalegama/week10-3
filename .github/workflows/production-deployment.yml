@@ -46,12 +46,24 @@ jobs:
         run: |
           kubectl create namespace production || echo "Staging namespace already exists"
 
+      - name: Create Kubernetes Secret (Azure + Postgres)
+        env:
+          STORAGE_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+          STORAGE_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
+        run: |
+          echo "Creating Kubernetes secret for Storage and DB"
+          kubectl create secret generic ecomm-secrets-w08e1 \
+            --from-literal=POSTGRES_USER=postgres \
+            --from-literal=POSTGRES_PASSWORD=postgres \
+            --from-literal=AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_NAME \
+            --from-literal=AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_KEY \
+            -n production --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Backend Infrastructure (Namespace, ConfigMaps, Secrets, Databases)
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
           kubectl apply -f configmaps.yaml -n production
-          kubectl apply -f secrets.yaml -n production
           kubectl apply -f product-db.yaml -n production
           kubectl apply -f order-db.yaml -n production
 

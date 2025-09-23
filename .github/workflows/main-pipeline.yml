@@ -20,5 +20,6 @@ jobs:
 
   run_cd_pipeline:
     name: Run Frontend CI
+    needs: [run_ci_pipeline]
     uses: ./.github/workflows/cd-pipeline.yml
     secrets: inherit

@@ -13,12 +13,12 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  run_backend_ci:
+  run_ci_pipeline:
     name: Run Backend CI
     uses: ./.github/workflows/ci-pipeline.yml
     secrets: inherit
 
-  run_frontend_ci:
+  run_cd_pipeline:
     name: Run Frontend CI
     uses: ./.github/workflows/cd-pipeline.yml
     secrets: inherit

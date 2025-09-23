@@ -1,0 +1,69 @@
+name: Production Deployment
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/**'
+      - 'backend/**'
+      - 'frontend/**'
+env:
+  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_STAGING_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  RESOURCE_GROUP_NAME : deakinuni
+  AKS_NAME : s224917579
+
+jobs:
+  deploy_to_staging:
+    runs-on: ubuntu-latest
+    outputs:
+      product_api_url: ${{ steps.deploy_product_service.outputs.product_api_url }}
+      order_api_url: ${{ steps.deploy_order_service.outputs.order_api_url }}
+      customer_api_url: ${{ steps.deploy_customer_service.outputs.customer_api_url }}
+      frontend_ip: ${{ steps.get_frontend_ip.outputs.frontend_ip }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Azure Login for ACR
+        run: |
+          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+
+      - name: Set AKS credentials
+        run: |
+          az aks get-credentials --name ${{ env.AKS_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }}
+
+      - name: Create staging namespace
+        run: |
+          kubectl create namespace production || echo "Staging namespace already exists"
+
+      - name: Deploy Backend Infrastructure (Namespace, ConfigMaps, Secrets, Databases)
+        run: |
+          echo "Deploying backend infrastructure..."
+          cd k8s/
+          kubectl apply -f configmaps.yaml -n production
+          kubectl apply -f secrets.yaml -n production
+          kubectl apply -f product-db.yaml -n production
+          kubectl apply -f order-db.yaml -n production
+
+      - name: Deploy to the production 
+        run: |
+          echo "Deploying backend microservices..."
+          cd k8s/
+          kubectl apply -f product-service.yaml -n production
+          kubectl apply -f order-service.yaml -n production
+          kubectl apply -f customer-service.yaml -n production
+          kubectl apply -f frontend.yaml -n production
+
+      - name: Deployment status
+        run: |
+          echo "Production deployment is done"

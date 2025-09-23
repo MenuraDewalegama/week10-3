@@ -3,6 +3,8 @@
 name: Main CI/CD Pipeline
 
 on:
+  # Manual trigger
+  workflow_dispatch:
   push:
     branches:
       - dev

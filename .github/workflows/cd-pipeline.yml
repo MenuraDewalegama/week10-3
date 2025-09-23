@@ -153,7 +153,17 @@ jobs:
       - name: Get frontend external IP
         run: |
           FRONTEND_IP=""
-          FRONTEND_IP=$(kubectl get svc frontend-w08e1 -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          for i in $(seq 1 60); do
+            echo "Attempt $i/60 to get IPs..."
+            FRONTEND_IP=$(kubectl get service frontend-w08e1 -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+            if [[ -n "$FRONTEND_IP" ]]; then
+              echo "All LoadBalancer IPs assigned!"
+              echo "Frontend IP: $FRONTEND_IP"
+              break
+            fi
+            sleep 5 # Wait 5 seconds before next attempt
+          done
           echo "FRONTEND_IP=$FRONTEND_IP" >> $GITHUB_ENV
 
       - name: Wait for manual acceptance testing (e.g., 5 minutes)

@@ -1,81 +1,98 @@
-name: Test Environment Creation or Deletion
+name: Production Deployment
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/**'
+      - 'backend/**'
+      - 'frontend/**'
+
   workflow_dispatch:
     inputs:
-      aks_cluster_name:
-        description: 'Name of the AKS Cluster to deploy to'
-        required: true
-        default: '224917579'
-      aks_resource_group:
-        description: 'Resource Group of the AKS Cluster'
-        required: true
-        default: 'deakinuni'
-      aks_acr_name:
-        description: 'Name of ACR'
-        required: true
-        default: '224917579'
-      env_name:
-        description: 'Namespace (environment name)'
+      namespace:
+        description: 'Kubernetes Namespace'
         required: true
         default: 'testing'
-      action:
-        description: 'Action to perform: create or delete'
-        required: true
-        default: 'create'
-        type: choice
-        options:
-          - create
-          - delete
+
+env:
+  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_STAGING_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  RESOURCE_GROUP_NAME : deakinuni
+  AKS_NAME : s224917579
+  NAMESPACE: ${{ github.event.inputs.namespace }}
 
 jobs:
-  manage_environment:
+  deploy_to_staging:
     runs-on: ubuntu-latest
-    environment: Production
-
+    outputs:
+      product_api_url: ${{ steps.deploy_product_service.outputs.product_api_url }}
+      order_api_url: ${{ steps.deploy_order_service.outputs.order_api_url }}
+      customer_api_url: ${{ steps.deploy_customer_service.outputs.customer_api_url }}
+      frontend_ip: ${{ steps.get_frontend_ip.outputs.frontend_ip }}
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Log in to Azure
+      - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-          enable-AzPSSession: true
+          creds: ${{ env.AZURE_CREDENTIALS }}
 
-      - name: Set Kubernetes context
+      - name: Azure Login for ACR
         run: |
-          az aks get-credentials \
-            --resource-group ${{ inputs.aks_resource_group }} \
-            --name ${{ inputs.aks_cluster_name }} \
-            --overwrite-existing
+          az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
 
-      - name: Create or Delete Environment
+      - name: Set AKS credentials
+        run: |
+          az aks get-credentials --name ${{ env.AKS_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }}
+
+      - name: Create namespace
+        if: github.event.inputs.action == 'apply'
+        run: |
+          kubectl create namespace $NAMESPACE || echo "Namespace already exists"
+
+      - name: Create Kubernetes Secret (Azure + Postgres)
+        if: github.event.inputs.action == 'apply'
         env:
-          ENV_NAME: ${{ inputs.env_name }}
-          ACTION: ${{ inputs.action }}
+          STORAGE_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+          STORAGE_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
+          echo "Creating Kubernetes secret for Storage and DB"
+          kubectl create secret generic ecomm-secrets-w08e1 \
+            --from-literal=POSTGRES_USER=postgres \
+            --from-literal=POSTGRES_PASSWORD=postgres \
+            --from-literal=AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_NAME \
+            --from-literal=AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_KEY \
+            -n $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Backend Infrastructure (Namespace, ConfigMaps, Secrets, Databases)
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Deploying backend infrastructure..."
           cd k8s/
+          kubectl apply -f configmaps.yaml -n $NAMESPACE 
+          kubectl apply -f product-db.yaml -n $NAMESPACE 
+          kubectl apply -f order-db.yaml -n $NAMESPACE 
 
-          if [ "$ACTION" = "create" ]; then
-            echo "Creating namespace and deploying resources to '$ENV_NAME'..."
-            kubectl get ns "$ENV_NAME" || kubectl create ns "$ENV_NAME"
-            kubectl apply -f configmaps.yaml -n "$ENV_NAME"
-            kubectl apply -f secrets.yaml -n "$ENV_NAME"
-            kubectl apply -f product-db.yaml -n "$ENV_NAME"
-            kubectl apply -f order-db.yaml -n "$ENV_NAME"
-            kubectl apply -f product-service.yaml -n "$ENV_NAME"
-            kubectl apply -f order-service.yaml -n "$ENV_NAME"
-            kubectl apply -f frontend.yaml -n "$ENV_NAME"
+      - name: Deploy to the test environment
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Deploying backend microservices..."
+          cd k8s/
+          kubectl apply -f product-service.yaml -n $NAMESPACE 
+          kubectl apply -f order-service.yaml -n $NAMESPACE 
+          kubectl apply -f frontend.yaml -n $NAMESPACE 
 
-          elif [ "$ACTION" = "delete" ]; then
-            echo "Deleting namespace '$ENV_NAME' and all its resources..."
-            kubectl delete ns "$ENV_NAME" --wait=true
-
-          else
-            echo "Invalid action: $ACTION. Must be 'create' or 'delete'."
-            exit 1
-          fi
-
-      - name: Logout from Azure
-        run: az logout
+      - name: Deployment status
+        run: |
+          echo "Production deployment is done"
+      
+      - name: Delete test namespace
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          kubectl delete namespace -n $NAMESPACE 

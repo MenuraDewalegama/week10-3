@@ -28,7 +28,7 @@ env:
   AZURE_STAGING_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
   RESOURCE_GROUP_NAME : deakinuni
-  AKS_NAME : s224917579
+  AKS_NAME : 224917579
 
 
 jobs:
@@ -54,9 +54,15 @@ jobs:
         run: |
           az aks get-credentials --name ${{ env.AKS_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }} --overwrite-existing
 
+      - name: Create staging namespace
+        env:
+          ENV_NAME: ${{ inputs.env_name }}
+        run: |
+          kubectl create namespace "$ENV_NAME" || echo "Namespace already exists"
+
       - name: Deploy Backend Infrastructure (ConfigMaps)
         env:
-          ENV_NAME: ${{ env.AKS_NAME }}
+          ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
@@ -64,7 +70,7 @@ jobs:
 
       - name: Create Kubernetes Secret (Azure + Postgres)
         env:
-          ENV_NAME: ${{ env.AKS_NAME }}
+          ENV_NAME: ${{ inputs.env_name }}
           STORAGE_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
           STORAGE_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
@@ -78,7 +84,7 @@ jobs:
 
       - name: Deploy Backend Infrastructure (Databases)
         env:
-          ENV_NAME: ${{ env.AKS_NAME }}
+          ENV_NAME: ${{ inputs.env_name }}
         run: |
           echo "Deploying backend infrastructure..."
           cd k8s/
@@ -87,7 +93,7 @@ jobs:
 
       - name: Deploy Backend Microservices (Product, Order)
         env:
-          ENV_NAME: ${{ env.AKS_NAME }}      
+          ENV_NAME: ${{ inputs.env_name }}      
         run: |
           echo "Deploying backend microservices..."
           cd k8s/
@@ -144,7 +150,7 @@ jobs:
 
       - name: Deploy Frontend to AKS
         env:
-          ENV_NAME: ${{ env.AKS_NAME }}      
+          ENV_NAME: ${{ inputs.env_name }}      
         run: |
           echo "Deploying frontend with latest tag to AKS cluster: ${{ inputs.aks_cluster_name }}"
           cd k8s/

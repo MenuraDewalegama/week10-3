@@ -1,4 +1,4 @@
-name: Production Deployment
+name: Test Environment Deployment
 
 on:
   workflow_dispatch:
@@ -7,6 +7,14 @@ on:
         description: 'Kubernetes Namespace'
         required: true
         default: 'testing'
+      action:
+        description: 'Terraform action to perform (apply or destroy)'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 env:
   AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}

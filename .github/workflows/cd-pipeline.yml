@@ -151,19 +151,26 @@ jobs:
           kubectl apply -f frontend.yaml -n staging
       
       - name: Get frontend external IP
-        id: get_frontend_ip
         run: |
-          FRONTEND_IP=$(kubectl get svc frontend-w08e1 -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo "Frontend service is available at: $FRONTEND_IP"
-          echo "::set-output name=frontend_ip::$FRONTEND_IP"
+          FRONTEND_IP=""
+          for i in $(seq 1 60); do
+            echo "Attempt $i/60 to get IPs..."
+            FRONTEND_IP=$(kubectl get service frontend-w08e1 -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-      - name: Display Frontend IP
-        run: |
-          echo "Frontend service is now available at: ${{ steps.get_frontend_ip.outputs.frontend_ip }}"
+            if [[ -n "$FRONTEND_IP" ]]; then
+              echo "All LoadBalancer IPs assigned!"
+              echo "Frontend IP: $FRONTEND_IP"
+              break
+            fi
+            sleep 5 # Wait 5 seconds before next attempt
+          done
+          echo "FRONTEND_IP=$FRONTEND_IP" >> $GITHUB_ENV
 
       - name: Wait for manual acceptance testing (e.g., 5 minutes)
         run: |
-          echo "Staging environment is ready at http://${{ steps.get_frontend_ip.outputs.frontend_ip }}. You have 5 minutes to perform manual tests."
+          echo "Staging frontend is ready at http://${{ env.FRONTEND_IP }}. You have 5 minutes to perform manual tests."
+          echo "Staging product service is ready at http://${{ env.PRODUCT_IP }}."
+          echo "Staging order service is ready at http://${{ env.ORDER_IP }}."
           sleep 60 # Wait for 1 minutes
 
   destroy_staging:

@@ -78,3 +78,26 @@ jobs:
       - name: Deployment status
         run: |
           echo "Production deployment is done"
+      
+      - name: Get external IPs
+        run: |
+          PRODUCT_IP=""
+          ORDER_IP=""
+          FRONTEND_IP=""
+          for i in $(seq 1 60); do
+            echo "Attempt $i/60 to get IPs..."
+            FRONTEND_IP=$(kubectl get svc frontend-w08e1 -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            PRODUCT_IP=$(kubectl get service product-service-w08e1 -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            ORDER_IP=$(kubectl get service order-service-w08e1 -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [[ -n "$PRODUCT_IP" && -n "$ORDER_IP" && -n "$FRONTEND_IP" ]]; then
+              echo "All LoadBalancer IPs assigned!"
+              echo "Product Service IP: $PRODUCT_IP"
+              echo "Order Service IP: $ORDER_IP"
+              echo "Frontend IP: $FRONTEND_IP"
+              break
+            fi
+            sleep 5 # Wait 5 seconds before next attempt
+          done
+          echo "FRONTEND_IP=$FRONTEND_IP" >> $GITHUB_ENV
+          echo "PRODUCT_IP=$PRODUCT_IP" >> $GITHUB_ENV
+          echo "ORDER_IP=$ORDER_IP" >> $GITHUB_ENV

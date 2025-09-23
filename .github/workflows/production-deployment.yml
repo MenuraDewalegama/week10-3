@@ -73,7 +73,6 @@ jobs:
           cd k8s/
           kubectl apply -f product-service.yaml -n production
           kubectl apply -f order-service.yaml -n production
-          kubectl apply -f customer-service.yaml -n production
           kubectl apply -f frontend.yaml -n production
 
       - name: Deployment status

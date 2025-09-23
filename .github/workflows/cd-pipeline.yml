@@ -153,7 +153,7 @@ jobs:
       - name: Get frontend external IP
         id: get_frontend_ip
         run: |
-          FRONTEND_IP=$(kubectl get svc frontend-aks -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          FRONTEND_IP=$(kubectl get svc frontend-w08e1 -n staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "Frontend service is available at: $FRONTEND_IP"
           echo "::set-output name=frontend_ip::$FRONTEND_IP"
 
